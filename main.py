@@ -62,3 +62,10 @@ def handle_message(event):
         event.reply_token,
         TextSendMessage(text=reply_message)
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    # Uvicornサーバーを起動
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+# uvicorn main:app --reload
+# で実行可能
