@@ -5,11 +5,15 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from dotenv import load_dotenv
 
 import os
+import uvicorn
+
+
 
 load_dotenv() 
 
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
+app_id = os.getenv("RAKUTEN_API_KEY")
 
 app = FastAPI()
 # .envファイルから環境変数を読み込む
@@ -64,8 +68,50 @@ def handle_message(event):
     )
 
 if __name__ == "__main__":
-    import uvicorn
+    
     # Uvicornサーバーを起動
     uvicorn.run(app, host="0.0.0.0", port=8000)
 # uvicorn main:app --reload
 # で実行可能
+
+import requests
+
+def get_recipe_by_category(category_id):
+    app_id = os.getenv("RAKUTEN_API_KEY")
+    url = "https://app.rakuten.co.jp/services/api/Recipe/CategoryRanking/20170426"
+    params = {
+        "applicationId": app_id,
+        "categoryId": category_id
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
+    try:
+        top = data["result"][0]
+        title = top["recipeTitle"]
+        recipe_url = top["recipeUrl"]
+        return f"🍽 人気レシピ：{title}\n🔗 {recipe_url}"
+    except Exception:
+        return "レシピが見つかりませんでした🙇"
+
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_message = event.message.text
+
+    category_map = {
+        "スープ": "30-307",
+        "主菜": "10-101",
+        "副菜": "10-115"
+    }
+
+    if user_message in category_map:
+        recipe = get_recipe_by_category(category_map[user_message])
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=recipe)
+        )
+    else:
+        # 通常のオウム返し
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"あなたが送ったメッセージ: {user_message}")
+        )
