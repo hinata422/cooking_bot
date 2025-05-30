@@ -85,6 +85,7 @@ def get_recipe_by_category(category_id):
     }
     response = requests.get(url, params=params)
     data = response.json()
+    print("楽天APIからのデータ：", data)
     try:
         top = data["result"][0]
         title = top["recipeTitle"]
