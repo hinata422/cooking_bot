@@ -122,8 +122,9 @@ def get_recipe_by_category(user_message):
             'categoryName': category['categoryName']
         }, ignore_index=True)
 
-    df_keyword = df.query('categoryName.str.contains(@user_message)', engine='python')
-for index, row in df_keyword.iterrows():
+        df_keyword = df.query('categoryName.str.contains(@user_message)', engine='python')
+
+    for index, row in df_keyword.iterrows():
         time.sleep(1)
         category_id = row['categoryId']
 
@@ -142,9 +143,9 @@ for index, row in df_keyword.iterrows():
             recipe_url = top["recipeUrl"]
             return f"🍽 人気レシピ：{title}\n🔗 {recipe_url}"
         except Exception:
-            continue  # 次の候補を探す
+            return "レシピが見つかりませんでした🙇"
 
-    return "レシピが見つかりませんでした🙇"
+    
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
