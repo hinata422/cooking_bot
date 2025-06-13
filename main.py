@@ -75,35 +75,4 @@ def handle_message(event):
     )
 
 if __name__ == "__main__":
-    
-    # Uvicornサーバーを起動
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-# uvicorn main:app --reload
-# で実行可能
-import re
-# ...existing code...
-
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    user_message = event.message.text
-    print(f"User message: {user_message}")
-
-    # 入力例: 主菜:鶏肉 副菜:サラダ 使わない:卵
-    main = sub = exclude = ""
-    m = re.search(r"主菜[:：]([^\s]+)", user_message)
-    s = re.search(r"副菜[:：]([^\s]+)", user_message)
-    e = re.search(r"使わない[:：]([^\s]+)", user_message)
-    if m:
-        main = m.group(1)
-    if s:
-        sub = s.group(1)
-    if e:
-        exclude = e.group(1)
-
-    # service.pyのget_recipe_by_categoryを拡張して、main, sub, excludeを渡す
-    recipe = s.get_recipe_by_category(main, sub, exclude, RAKUTEN_API_KEY)
-
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=recipe)
-    )
+  uvicorn.run(app, host="0.0.0.0", port=8000)
