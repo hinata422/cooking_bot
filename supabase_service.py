@@ -2,7 +2,7 @@ from supabase import create_client,Client
 from dotenv import load_dotenv
 from linebot import LineBotApi
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
-from linebot.webhook import WebhookHandler
+from linebot.v3.webhook import WebhookHandler
 import os
 
 load_dotenv()
@@ -41,3 +41,15 @@ def handle_message(event):
             print("レシピの保存に失敗しました")
     else:
         print("ユーザーが登録されていません")
+
+
+def check_connection():
+    try:
+        res = supabase.table("users").select("*").limit(1).execute()
+        print("✅ Supabase に接続できました！")
+        print("取得したデータ:", res.data)
+    except Exception as e:
+            print("❌ Supabase 接続エラー:", e)
+    
+if __name__ == "__main__":
+        check_connection()
