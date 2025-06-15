@@ -53,46 +53,25 @@ async def callback(request: Request): # Webhookのリクエストを受け取る
 # メッセージ受信時の処理
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    import re
+   
 
     user_message = event.message.text
-    print(f"User message: {user_message}")
+    print(f"Received message: {user_message}")
+   
+# LINEに返すメッセージの作成Add commentMore actions
+    reply_message = f"あなたが送ったメッセージ: {user_message}"
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=reply_message)
+    )
 
-    # 入力例: 主菜:鶏肉 副菜:サラダ 使わない:卵
-    main = sub = exclude = ""
-    m = re.search(r"主菜[:：]([^\s]+)", user_message)
-    s_ = re.search(r"副菜[:：]([^\s]+)", user_message)
-    e = re.search(r"使わない[:：]([^\s]+)", user_message)
-    if m:
-        main = m.group(1)
-    if s_:
-        sub = s_.group(1)
-    if e:
-        exclude = e.group(1)
+    recipe = s.get_recipe_by_category(user_message, RAKUTEN_API_KEY)
 
-    # ユーザーIDを取得
-    line_user_id = event.source.user_id
-    user_res = s.supabase.table("users").select("id").eq("line_user_id", line_user_id).execute()
-
-    if not user_res.data:
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ユーザーが登録されていません"))
-        return
-
-    user_id = user_res.data[0]["id"]
-
-    # レシピ検索処理
-    recipe_text, recipe_id = s.get_recipe_by_category(main, sub, exclude, RAKUTEN_API_KEY)
-
-    if recipe_id:
-        # 中間テーブルに保存
-        s.supabase.table("user_recipe").insert({
-            "user_id": user_id,
-            "recipe_id": recipe_id
-        }).execute()
+   
 
     line_bot_api.reply_message(
         event.reply_token,
-        TextSendMessage(text=recipe_text)
+        TextSendMessage(text=recipe)
     )
 
 if __name__ == "__main__":
