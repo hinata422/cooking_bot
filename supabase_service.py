@@ -20,17 +20,17 @@ def handle_message(event):
     line_user_id = event.source.user_id
 
     # ユーザーID取得
-    user_response = supabase.table("user").select("id").eq("line_user_id", line_user_id).execute()
+    user_response = supabase.table("users").select("id").eq("line_user_id", line_user_id).execute()
 
     if user_response.data:
         user_id = user_response.data[0]["id"]
 
         # レシピを保存
         recipe_data = {"name": recipe_title,"url": "https://example.com"}  # 仮URLでOK
-        recipes_response = supabase.table("recipe").insert(recipe_data).execute()
+        recipe_response = supabase.table("recipes").insert(recipe_data).execute()
 
-        if recipes_response.data:
-            recipe_id = recipes_response.data[0]["id"]
+        if recipe_response.data:
+            recipe_id = recipe_response.data[0]["id"]
 
             # 中間テーブルに保存
             link_data = {"user_id": user_id, "recipe_id": recipe_id}
@@ -45,7 +45,7 @@ def handle_message(event):
 
 def check_connection():
     try:
-        res = supabase.table("user").select("*").limit(1).execute()
+        res = supabase.table("users").select("*").limit(1).execute()
         print("✅ Supabase に接続できました！")
         print("取得したデータ:", res.data)
     except Exception as e:
