@@ -14,7 +14,8 @@ load_dotenv()
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")# 環境変数からLINEのチャンネルシークレットを取得
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")# 環境変数からLINEのチャンネルアクセストークンを取得
 RAKUTEN_API_KEY = os.getenv("RAKUTEN_API_KEY")
-
+DIFY_API_KEY = os.getenv("DIFY_API_KEY")
+DIFY_API_URL = os.getenv("DIFY_API_URL")
 
 app = FastAPI() 
 
