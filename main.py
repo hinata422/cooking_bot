@@ -57,17 +57,6 @@ def handle_message(event):
     user_message = event.message.text
     print(f"User message: {user_message}")
 
-    # LINEに返すメッセージの作成
-    reply_message = f"あなたが送ったメッセージ: {user_message}"
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_message)
-    )
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    user_message = event.message.text
-
-
     recipe = s.get_recipe_by_category(user_message, RAKUTEN_API_KEY)
 
     line_bot_api.reply_message(
