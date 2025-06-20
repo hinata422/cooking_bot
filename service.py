@@ -2,7 +2,7 @@ import requests # HTTPリクエストを送るためのライブラリ
 import pandas as pd # データフレーム操作のためのライブラリ
 import json # JSONデータの操作のためのライブラリ
 import time # 時間操作のためのライブラリ
-
+import re
 
 def get_recipe_by_category(user_message:str, RAKUTEN_API_KEY:str):
     parent_dict = {}
@@ -69,3 +69,29 @@ def get_recipe_by_category(user_message:str, RAKUTEN_API_KEY:str):
             return f"🍽 人気レシピ：{title}\n🔗 {recipe_url}"
         except Exception:
             return "レシピが見つかりませんでした🙇"
+        
+def generate_recipe_with_dify(food_name: str, dify_url: str, dify_key: str) -> str:
+    headers = {
+        "Authorization": f"Bearer {dify_key}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "inputs": {
+            "食材": food_name
+        }
+    }
+
+    try:
+        response = requests.post(dify_url, headers=headers, json=data)
+        response.raise_for_status()
+        result = response.json()
+
+        # "answer" にレシピがあると想定
+        generated_text = result.get("answer", "")
+        urls = re.findall(r'https?://\S+', generated_text)
+        return urls[0] if urls else generated_text
+
+    except Exception as e:
+        print(f"Dify API error: {e}")
+        return "レシピが見つかりませんでした"
