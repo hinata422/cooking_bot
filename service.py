@@ -2,7 +2,7 @@ import requests # HTTPリクエストを送るためのライブラリ
 import pandas as pd # データフレーム操作のためのライブラリ
 import json # JSONデータの操作のためのライブラリ
 import time # 時間操作のためのライブラリ
-import re
+import re # HTTPリクエストを送るためのライブラリ
 
 def get_recipe_by_category(user_message:str, RAKUTEN_API_KEY:str):
     parent_dict = {}
@@ -75,20 +75,25 @@ def generate_recipe_with_dify(food_name: str, dify_url: str, dify_key: str) -> s
         "Authorization": f"Bearer {dify_key}",
         "Content-Type": "application/json"
     }
-
     data = {
         "inputs": {
             "食材": food_name
-        }
+        },
+        "query": f"{food_name}を使ったレシピを教えてください",
+        "response_mode": "blocking"
     }
 
     try:
         response = requests.post(dify_url, headers=headers, json=data)
         response.raise_for_status()
         result = response.json()
+        
+        # Difyの出力形式によってはここを調整
+        generated_text = result.get("answer") or result.get("output") or result.get("message") or ""
 
-        # "answer" にレシピがあると想定
-        generated_text = result.get("answer", "")
+        # レシピのURLを含む部分だけ抽出する（仮）
+        # 例：「このレシピを参考にしてください：https://example.com/recipe/12345」
+        
         urls = re.findall(r'https?://\S+', generated_text)
         return urls[0] if urls else generated_text
 
