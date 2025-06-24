@@ -11,7 +11,7 @@ import os # 環境変数の読み込み
 import uvicorn # Uvicornサーバーの起動用ライブラリ
 import pandas as pd # データフレーム操作のためのライブラリ
 import service as s
-
+import re
 
 load_dotenv() 
 
@@ -77,14 +77,17 @@ def handle_message(event):
 
     # ② なければDifyで生成
     if recipe_url is None:
-        recipe_url = s.generate_recipe_with_dify(user_message, DIFY_API_URL, DIFY_API_KEY)
+        generated_response = s.generate_recipe_with_dify(user_message, DIFY_API_URL, DIFY_API_KEY)
 
-    # ③ レスポンス用メッセージ作成
-    reply_text = recipe_url if recipe_url else "申し訳ありません、レシピが見つかりませんでした。"
+        # URLを含んでいるか？
+        urls = re.findall(r'https?://\S+', generated_response)
+        recipe_url = urls[0] if urls else None
+        reply_text = recipe_url if recipe_url else generated_response
+    else:
+        reply_text = recipe_url
 
     # ④ Supabaseに保存
     if recipe_url and user_id != "unknown":
-        from basemodel import RecipeCreate
         recipe_data = RecipeCreate(user_id=user_id, food_name=user_message, url=recipe_url)
         supabase.table("recipes").insert(recipe_data.model_dump()).execute()
 
