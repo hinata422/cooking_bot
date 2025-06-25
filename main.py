@@ -23,9 +23,9 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 DIFY_API_KEY = os.getenv("DIFY_API_KEY")
 DIFY_API_URL = os.getenv("DIFY_API_URL")
 
+print("DIFY_API_URL =", DIFY_API_URL)
 
-
-app = FastAPI() 
+app = FastAPI()
 
 # .envファイルから環境変数を読み込む
 line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)

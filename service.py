@@ -71,13 +71,14 @@ def get_recipe_by_category(user_message:str, RAKUTEN_API_KEY:str):
             return "レシピが見つかりませんでした🙇"
         
 def generate_recipe_with_dify(food_name: str, dify_url: str, dify_key: str) -> str:
+    dify_url = "https://api.dify.ai/v1/chat-messages"
     headers = {
         "Authorization": f"Bearer {dify_key}",
         "Content-Type": "application/json"
     }
     data = {
         "inputs": {
-            "食材": food_name
+            "shokuzai": food_name
         },
         "query": f"{food_name}を使ったレシピを教えてください",
         "response_mode": "blocking"
@@ -87,16 +88,22 @@ def generate_recipe_with_dify(food_name: str, dify_url: str, dify_key: str) -> s
         response = requests.post(dify_url, headers=headers, json=data)
         response.raise_for_status()
         result = response.json()
-        
-        # Difyの出力形式によってはここを調整
-        generated_text = result.get("answer") or result.get("output") or result.get("message") or ""
 
-        # レシピのURLを含む部分だけ抽出する（仮）
-        # 例：「このレシピを参考にしてください：https://example.com/recipe/12345」
-        
-        urls = re.findall(r'https?://\S+', generated_text)
-        return urls[0] if urls else generated_text
+        # 結果の中から 'url' キーの値を取得（プロンプトの出力形式に合わせて）
+        generated_url = result.get("answer") or result.get("output") or result.get("message")
+
+        # JSON形式で返ってくる場合は辞書として再パース
+        if isinstance(generated_url, str):
+            try:
+                parsed = json.loads(generated_url)
+                return parsed.get("url", "レシピURLが見つかりませんでした。")
+            except json.JSONDecodeError:
+                return generated_url  # 普通の文章だった場合
+        elif isinstance(generated_url, dict):
+            return generated_url.get("url", "レシピURLが見つかりませんでした。")
+        else:
+            return "レシピが見つかりませんでした。"
 
     except Exception as e:
         print(f"Dify API error: {e}")
-        return "レシピが見つかりませんでした"
+        return "レシピが見つかりませんでした。"
