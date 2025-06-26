@@ -1,21 +1,29 @@
-import requests # HTTPリクエストを送るためのライブラリ
-import pandas as pd # データフレーム操作のためのライブラリ
-import json # JSONデータの操作のためのライブラリ
-import time # 時間操作のためのライブラリ
-import re # HTTPリクエストを送るためのライブラリ
+import requests
+import pandas as pd
+import json
+import time
+import re
+import os
+import json
 
-def get_recipe_by_category(user_message:str, RAKUTEN_API_KEY:str):
+from dotenv import load_dotenv
+load_dotenv()
+
+from openai import OpenAI
+
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+def get_recipe_by_category(user_message: str, RAKUTEN_API_KEY: str):
     parent_dict = {}
-    
-    res = requests.get( 
+
+    res = requests.get(
         'https://app.rakuten.co.jp/services/api/Recipe/CategoryList/20170426',
         params={'applicationId': RAKUTEN_API_KEY}
     )
-    json_data = json.loads(res.text)
+    json_data = res.json()
 
     df = pd.DataFrame(columns=['category1', 'category2', 'category3', 'categoryId', 'categoryName'])
 
-    # 大カテゴリ
     for category in json_data['result']['large']:
         df = pd.concat([df, pd.DataFrame({
             'category1': category['categoryId'],
@@ -25,7 +33,6 @@ def get_recipe_by_category(user_message:str, RAKUTEN_API_KEY:str):
             'categoryName': category['categoryName']
         }, index=[0])], ignore_index=True)
 
-    # 中カテゴリ
     for category in json_data['result']['medium']:
         df = pd.concat([df, pd.DataFrame({
             'category1': category['parentCategoryId'],
@@ -36,7 +43,6 @@ def get_recipe_by_category(user_message:str, RAKUTEN_API_KEY:str):
         }, index=[0])], ignore_index=True)
         parent_dict[str(category['categoryId'])] = category['parentCategoryId']
 
-    # 小カテゴリ
     for category in json_data['result']['small']:
         parent = parent_dict.get(category['parentCategoryId'], "")
         df = pd.concat([df, pd.DataFrame({
@@ -47,7 +53,7 @@ def get_recipe_by_category(user_message:str, RAKUTEN_API_KEY:str):
             'categoryName': category['categoryName']
         }, index=[0])], ignore_index=True)
 
-        df_keyword = df.query('categoryName.str.contains(@user_message)', engine='python')
+    df_keyword = df.query('categoryName.str.contains(@user_message)', engine='python')
 
     for index, row in df_keyword.iterrows():
         time.sleep(1)
@@ -69,41 +75,45 @@ def get_recipe_by_category(user_message:str, RAKUTEN_API_KEY:str):
             return f"🍽 人気レシピ：{title}\n🔗 {recipe_url}"
         except Exception:
             return "レシピが見つかりませんでした🙇"
-        
-def generate_recipe_with_dify(food_name: str, dify_url: str, dify_key: str) -> str:
-    dify_url = "https://api.dify.ai/v1/chat-messages"
-    headers = {
-        "Authorization": f"Bearer {dify_key}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "inputs": {
-            "shokuzai": food_name
-        },
-        "query": f"{food_name}を使ったレシピを教えてください",
-        "response_mode": "blocking"
-    }
 
+    return None
+
+def generate_recipe_with_openai(food_name: str) -> str:
     try:
-        response = requests.post(dify_url, headers=headers, json=data)
-        response.raise_for_status()
-        result = response.json()
+        chat_response = client.chat.completions.create(
+            model="gpt-4-1106-preview",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "あなたはプロのレシピ選定アシスタントです。"
+                        "ユーザーから食材や料理名を受け取ったら、"
+                        "信頼できるレシピページをインターネット検索で探し、"
+                        "検索結果の中で最も上位に表示された詳細レシピページのURLを1つだけ返してください。"
+                        "URLは必ず以下の信頼できるドメインの中から選んでください："
+                        "cookpad.com、kurashiru.com、delishkitchen.tv、recipe.rakuten.co.jp。"
+                        "URL以外の文章は一切含めず、URLのみを出力してください。"
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": f"{food_name} を使ったレシピページのURLを教えてください。"
+                }
+            ],
+            temperature=0.7,
+            max_tokens=300
+        )
 
-        # 結果の中から 'url' キーの値を取得（プロンプトの出力形式に合わせて）
-        generated_url = result.get("answer") or result.get("output") or result.get("message")
+        content = chat_response.choices[0].message.content.strip()
+        print("🔁 OpenAIからの返答:", content)
 
-        # JSON形式で返ってくる場合は辞書として再パース
-        if isinstance(generated_url, str):
-            try:
-                parsed = json.loads(generated_url)
-                return parsed.get("url", "レシピURLが見つかりませんでした。")
-            except json.JSONDecodeError:
-                return generated_url  # 普通の文章だった場合
-        elif isinstance(generated_url, dict):
-            return generated_url.get("url", "レシピURLが見つかりませんでした。")
+        # URL 抽出
+        match = re.search(r'https://(?:cookpad\.com|www\.kurashiru\.com|delishkitchen\.tv|recipe\.rakuten\.co\.jp)/recipe/\S+', content)
+        if match:
+            return match.group(0)
         else:
-            return "レシピが見つかりませんでした。"
+            return "OpenAIからレシピURLを取得できませんでした。"
 
     except Exception as e:
-        print(f"Dify API error: {e}")
-        return "レシピが見つかりませんでした。"
+        print(f"🛑 OpenAI API error: {e}")
+        return "OpenAI APIエラーが発生しました。"
