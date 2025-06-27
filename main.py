@@ -60,8 +60,18 @@ def handle_message(event):
     print(f"User message: {user_message}")
     print(f"User ID: {user_id}")
 
+    recipe_url = None # 初期値としてNoneを設定
+
+ # --- 1. Supabaseから過去のレシピを検索 ---
+    if user_id != "unknown":
+        res = supabase.table("recipes").select("*").eq("food_name", user_message).execute()
+        if res.data and len(res.data) > 0:
+            recipe_url = res.data[0]["url"]
+            print("✅ Supabaseから取得しました:", recipe_url)
+
     # --- 1. 楽天APIでレシピを検索 ---
-    recipe_url = s.get_recipe_by_category(user_message, RAKUTEN_API_KEY)
+    if recipe_url is None:
+       recipe_url = s.get_recipe_by_category(user_message, RAKUTEN_API_KEY)
 
     # --- 2. 楽天で見つからなかった場合、SerpAPIで検索 ---
     if recipe_url is None or "レシピが見つかりませんでした" in recipe_url:
@@ -71,7 +81,7 @@ def handle_message(event):
 
     # --- 3. Supabaseに保存 ---
     if recipe_url and user_id != "unknown" and "http" in recipe_url:
-     recipe_data = RecipeCreate(
+        recipe_data = RecipeCreate(
         user_id=user_id,
         food_name=user_message,
         url=recipe_url
