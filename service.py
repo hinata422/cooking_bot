@@ -1,18 +1,16 @@
 import requests
 import pandas as pd
-import json
 import time
 import re
 import os
-import json
-
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from openai import OpenAI
+# APIキー
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
+# 楽天レシピAPIでカテゴリからレシピを取得
 def get_recipe_by_category(user_message: str, RAKUTEN_API_KEY: str):
     parent_dict = {}
 
@@ -78,42 +76,29 @@ def get_recipe_by_category(user_message: str, RAKUTEN_API_KEY: str):
 
     return None
 
-def generate_recipe_with_openai(food_name: str) -> str:
+
+# SerpAPIを使ってレシピURLを検索
+def search_recipe_url(query: str, serpapi_key: str = SERPAPI_KEY) -> str:
     try:
-        chat_response = client.chat.completions.create(
-            model="gpt-4-1106-preview",
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "あなたはプロのレシピ選定アシスタントです。"
-                        "ユーザーから食材や料理名を受け取ったら、"
-                        "信頼できるレシピページをインターネット検索で探し、"
-                        "検索結果の中で最も上位に表示された詳細レシピページのURLを1つだけ返してください。"
-                        "URLは必ず以下の信頼できるドメインの中から選んでください："
-                        "cookpad.com、kurashiru.com、delishkitchen.tv、recipe.rakuten.co.jp。"
-                        "URL以外の文章は一切含めず、URLのみを出力してください。"
-                    )
-                },
-                {
-                    "role": "user",
-                    "content": f"{food_name} を使ったレシピページのURLを教えてください。"
-                }
-            ],
-            temperature=0.7,
-            max_tokens=300
-        )
+        params = {
+            "q": f"{query} site:cookpad.com OR site:kurashiru.com OR site:delishkitchen.tv OR site:recipe.rakuten.co.jp",
+            "api_key": serpapi_key,
+            "engine": "google",
+            "hl": "ja",
+            "gl": "jp",
+            "num": 5
+        }
 
-        content = chat_response.choices[0].message.content.strip()
-        print("🔁 OpenAIからの返答:", content)
+        response = requests.get("https://serpapi.com/search", params=params)
+        data = response.json()
 
-        # URL 抽出
-        match = re.search(r'https://(?:cookpad\.com|www\.kurashiru\.com|delishkitchen\.tv|recipe\.rakuten\.co\.jp)/recipe/\S+', content)
-        if match:
-            return match.group(0)
-        else:
-            return "OpenAIからレシピURLを取得できませんでした。"
+        for result in data.get("organic_results", []):
+            url = result.get("link", "")
+            if re.match(r"https?://(cookpad\.com|www\.kurashiru\.com|delishkitchen\.tv|recipe\.rakuten\.co\.jp)/", url):
+                return url
+
+        return "信頼できるレシピURLが見つかりませんでした。"
 
     except Exception as e:
-        print(f"🛑 OpenAI API error: {e}")
-        return "OpenAI APIエラーが発生しました。"
+        print("🛑 SerpAPI error:", e)
+        return "レシピURL取得時にエラーが発生しました。"

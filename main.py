@@ -18,9 +18,10 @@ load_dotenv()
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 LINE_CHANNEL_ACCESS_TOKEN = os.getenv("LINE_CHANNEL_ACCESS_TOKEN")
 RAKUTEN_API_KEY = os.getenv("RAKUTEN_API_KEY")
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 
 app = FastAPI()
 
@@ -51,37 +52,34 @@ async def callback(request: Request):
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     if hasattr(event, "delivery_context") and getattr(event.delivery_context, "is_redelivery", False):
-        print("\u26a0\ufe0f Redeliveryイベントのためスキップします")
+        print("⚠️ Redeliveryイベントのためスキップします")
         return
 
-    if event.source.type == "user":
-        user_id = event.source.user_id
-    else:
-        user_id = "unknown"
-
+    user_id = event.source.user_id if event.source.type == "user" else "unknown"
     user_message = event.message.text
     print(f"User message: {user_message}")
     print(f"User ID: {user_id}")
 
-    # 1. 楽天APIからレシピ取得
+    # --- 1. 楽天APIでレシピを検索 ---
     recipe_url = s.get_recipe_by_category(user_message, RAKUTEN_API_KEY)
 
-    # 2. なければOpenAIで生成
-    if recipe_url is None:
-        generated_response = s.generate_recipe_with_openai(user_message)
+    # --- 2. 楽天で見つからなかった場合、SerpAPIで検索 ---
+    if recipe_url is None or "レシピが見つかりませんでした" in recipe_url:
+        recipe_url = s.search_recipe_url(user_message, SERPAPI_KEY)
 
-        urls = re.findall(r'https?://\S+', generated_response)
-        recipe_url = urls[0] if urls else None
-        reply_text = recipe_url if recipe_url else generated_response
-    else:
-        reply_text = recipe_url
+    reply_text = recipe_url
 
-    # 3. Supabaseに保存
-    if recipe_url and user_id != "unknown":
-        recipe_data = RecipeCreate(user_id=user_id, food_name=user_message, url=recipe_url)
-        supabase.table("recipes").insert(recipe_data.model_dump()).execute()
+    # --- 3. Supabaseに保存 ---
+    if recipe_url and user_id != "unknown" and "http" in recipe_url:
+     recipe_data = RecipeCreate(
+        user_id=user_id,
+        food_name=user_message,
+        url=recipe_url
+    )
+    res = supabase.table("recipes").insert(recipe_data.model_dump()).execute()
+    print("Supabase insert result:", res)
 
-    # 4. LINEに返信
+    # --- 4. LINEに返信 ---
     line_bot_api.reply_message(
         event.reply_token,
         TextSendMessage(text=reply_text)
