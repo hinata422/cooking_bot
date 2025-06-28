@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# APIキー
+
 SERPAPI_KEY = os.getenv("SERPAPI_KEY")
 
 # 楽天レシピAPIでカテゴリからレシピを取得

@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from basemodel import RecipeCreate
 from supabase import create_client, Client
 from pydantic import BaseModel
+from linebot.models import FollowEvent
 
 import os
 import uvicorn
@@ -29,6 +30,36 @@ line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+WELCOME_MESSAGE = """🍳 こんにちは！料理レシピボットへようこそ！
+
+このボットは、あなたが送った食材や料理名に応じて、
+🌟 人気のレシピを自動で検索・紹介してくれる便利なLINEサービスです。
+
+🔍 使い方はとても簡単！
+以下のように、食材や料理名をメッセージで送るだけでOKです。
+
+たとえば：
+・カレー  
+・じゃがいも ベーコン  
+・鶏肉 トマト 煮込み  
+・トマトスープ
+
+📚 レシピは「クックパッド」「クラシル」「デリッシュキッチン」「楽天レシピ」など
+信頼できるサイトから探してお届けします。
+
+💾 一度検索したレシピは自動的に保存され、
+同じ料理名での再検索では、すぐに過去のレシピを呼び出せます。
+
+📲 食材を組み合わせて、新しいレシピのヒントを得るのにも最適です！
+
+気になる食材や料理名を送って、毎日の献立に役立ててくださいね😊
+"""
+@handler.add(FollowEvent)
+def handle_follow(event):
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=WELCOME_MESSAGE)
+    )
 @app.get("/")
 def read_root():
     return {"message": "Cooking Bot is running!"}
@@ -96,4 +127,4 @@ def handle_message(event):
     )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=10000)
